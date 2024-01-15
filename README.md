@@ -56,7 +56,6 @@ the plugin can only used in the system with two parallel conductor planes. Refer
 ### ImageLangevinIntegrator
 ```python
     from imageplugin import ImageLangevinIntegrator
-    from imageplugin import ImageCustomIntegrator
 
     integrator = ImageLangevinIntegrator(temperature, freq, timestep)
     integrator.setCellSize(zbox)  # zbox is the distance between two surfaces
@@ -79,7 +78,7 @@ the ImageCustomIntegrator. The MTSLangevinIntegrator implements the RESPA multip
 step algorithm, which is usually used in conjunction with the AMOEBA force field.
 
 ```python
-from imagemtsintegrator import *
+from pytools/imagemtsintegrator import *
 
 for f in system.getForces():
     if isinstance(f, AmoebaVdwForce):
@@ -104,7 +103,7 @@ The barastae allows for controlled pressure only in the z-direction for a system
 parallel plates. Refer to 
 [this article](https://pubs.acs.org/doi/10.1021/acs.jpcc.0c00299) for more details.
 ```python
-from mcbarostate import *
+from pytools/mcbarostate import *
 
 barostat = Barostat(simulation, pressure, temperature, barostatInterval)
 barostat.step_poly(equilibrationSteps)
