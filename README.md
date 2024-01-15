@@ -37,7 +37,7 @@ and that IMAGE_BUILD_CUDA_LIB is selected.
 Performing three sets of commands 'make / make install / make PythonInstall' will install the plugin
 as 'drudenoseplugin' package in your python
 
-Note: If you want to use the ImageCustomIntegrator in OpenMM 8.0.0 or higher versions, you need to 
+Note: If you want to use the ImageCustomIntegrator in OpenMM 8.0, you need to 
 copy the folder asmjit of OpenMM to the library folder in the plugin for substitution. 
 The CMakeList.txt also needs to be modified accordingly. 
 If you update the imageplugin version in setup.py, you should use pip uninstall the old version, 
@@ -56,7 +56,6 @@ the plugin can only used in the system with two parallel conductor planes. Refer
 ### ImageLangevinIntegrator
 ```python
     from imageplugin import ImageLangevinIntegrator
-    from imageplugin import ImageCustomIntegrator
 
     integrator = ImageLangevinIntegrator(temperature, freq, timestep)
     integrator.setCellSize(zbox)  # zbox is the distance between two surfaces
@@ -79,7 +78,7 @@ the ImageCustomIntegrator. The MTSLangevinIntegrator implements the RESPA multip
 step algorithm, which is usually used in conjunction with the AMOEBA force field.
 
 ```python
-from imagemtsintegrator import *
+from pytools/imagemtsintegrator import *
 
 for f in system.getForces():
     if isinstance(f, AmoebaVdwForce):
@@ -104,7 +103,7 @@ The barastae allows for controlled pressure only in the z-direction for a system
 parallel plates. Refer to 
 [this article](https://pubs.acs.org/doi/10.1021/acs.jpcc.0c00299) for more details.
 ```python
-from mcbarostate import *
+from pytools/mcbarostate import *
 
 barostat = Barostat(simulation, pressure, temperature, barostatInterval)
 barostat.step_poly(equilibrationSteps)
@@ -133,8 +132,7 @@ Portions copyright (c) 2023 the Authors.
 Authors: Ruochao Wang
 
 Contributors: 
-Part of the code comes from [scychon's openmm_constV](https://github.com/scychon/openmm_constV) 
-and [z-gong's velocity-Verlet plugin](https://github.com/z-gong/openmm-velocityVerlet?tab=readme-ov-file).
+Part of the code comes from [scychon's openmm_constV](https://github.com/scychon/openmm_constV).
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
