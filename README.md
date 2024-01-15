@@ -37,7 +37,7 @@ and that IMAGE_BUILD_CUDA_LIB is selected.
 Performing three sets of commands 'make / make install / make PythonInstall' will install the plugin
 as 'drudenoseplugin' package in your python
 
-Note: If you want to use the ImageCustomIntegrator in OpenMM 8.0.0 or higher versions, you need to 
+Note: If you want to use the ImageCustomIntegrator in OpenMM 8.0, you need to 
 copy the folder asmjit of OpenMM to the library folder in the plugin for substitution. 
 The CMakeList.txt also needs to be modified accordingly. 
 If you update the imageplugin version in setup.py, you should use pip uninstall the old version, 
@@ -133,8 +133,7 @@ Portions copyright (c) 2023 the Authors.
 Authors: Ruochao Wang
 
 Contributors: 
-Part of the code comes from [scychon's openmm_constV](https://github.com/scychon/openmm_constV) 
-and [z-gong's velocity-Verlet plugin](https://github.com/z-gong/openmm-velocityVerlet?tab=readme-ov-file).
+Part of the code comes from [scychon's openmm_constV](https://github.com/scychon/openmm_constV).
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
