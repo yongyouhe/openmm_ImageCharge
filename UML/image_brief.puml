@@ -1,0 +1,176 @@
+@startuml
+
+skinparam ClassAttributeIconSize 0
+skinparam defaultFontSize 20
+skinparam noteFontSize 40
+hide empty fields
+hide empty methods
+/'
+component "compA" as compA {
+}
+note left of compA #LightBlue
+    This UML omits the relationships between classes in the OpenMM source code.
+
+    The classes with the yellow background belongs to the OpenMM source code.
+end note
+
+hide compA
+'/
+
+/'
+Integrator --> ContextImpl : friend
+
+Kernel <-- ImageLangevinIntegrator
+ContextImpl <... ImageLangevinIntegrator
+Platform <-- KernelImpl
+Platform ...> ContextImpl : <<friend>>
+Platform *--> KernelFactory
+'/
+package "Public API" {
+    'Integrator <|-- ImageLangevinIntegrator
+    'Context <... ImageLangevinIntegrator
+    abstract class Integrator #back:LightYellow {
+    }
+    class Context #back:LightYellow {
+    }
+    class System #back:LightYellow {
+    }
+    abstract class SerializationProxy #back:LightYellow
+    class SerializationNode #back:LightYellow
+
+    class ImageLangevinIntegrator{
+        - numCells : int
+        - cellsize : double
+        - ilkernel : Kernel
+        - imgkernel : Kernel
+        - useImageParticle : bool
+        - imagePairs : vector<pair<int, int>>
+        ...
+        --
+        + setImagePair(image : int, parent : int) : int
+        + setUseImageParticle(use : bool) : void
+        + setCellSize(z : double) : void
+        # initialize(context : ContextImpl&) : void
+        + step(steps : int) : void
+        ...
+    }
+}
+
+package "Implementation Layer" {
+    class ContextImpl #back:LightYellow
+    'SerializationProxy <|-- ImageLangevinIntegratorProxy
+    'SerializationNode <... ImageLangevinIntegratorProxy
+    ImageLangevinIntegrator <..right. ImageLangevinIntegratorProxy : <<serialize>>
+    class ImageLangevinIntegratorProxy{
+        + serialize(object : const void*, node : SerializationNode&) : void
+        + deserialize(node : const SerializationNode&) : void*
+    }
+}
+
+package "Low Level API" {
+
+
+    'System <... IntegrateImageLangevinStepKernel
+    'Platform <... IntegrateImageLangevinStepKernel
+    'ContextImpl <..down. IntegrateImageLangevinStepKernel
+    'KernelImpl <|-- IntegrateImageLangevinStepKernel
+    ImageLangevinIntegrator <..right. IntegrateImageLangevinStepKernel
+    abstract class IntegrateImageLangevinStepKernel{
+        {static} + Name() : string
+        {abstract} + initialize(system : const System&, integrator : const ImageLangevinIntegrator&) : void
+        {abstract} + execute(context : ContextImpl&, integrator : const ImageLangevinIntegrator&) : void
+        {abstract} + computeKineticEnergy(context : ContextImpl&, integrator : const ImageLangevinIntegrator&) : double
+    }
+    abstract class Platform #back:LightYellow
+    class Kernel #back:LightYellow
+    abstract class KernelImpl #back:LightYellow
+    abstract class KernelFactory #back:LightYellow
+    abstract class ComputeContext #back:LightYellow
+    'abstract class ArrayInterface #back:LightYellow
+    class ComputeArray #back:LightYellow
+    abstract class ComputeKernelImpl #back:LightYellow
+
+    'System <... ImageParticleKernel
+    'Platform <... ImageParticleKernel
+    'ContextImpl <... ImageParticleKernel
+    'KernelImpl <|-- ImageParticleKernel
+    ImageLangevinIntegrator <..down. ImageParticleKernel
+    
+    abstract class ImageParticleKernel{
+        {static} + Name() : string
+        {abstract} + initialize(system : const System&, integrator : const ImageLangevinIntegrator&)
+        {abstract} + updateImagePositions(context : ContextImpl&, integrator : const ImageLangevinIntegrator&)
+    }
+}
+
+package "CUDA Kernels" {
+    class CudaKernel #back:LightYellow
+    class CudaArray #back:LightYellow
+    class CudaContext #back:LightYellow
+    /'
+    ComputeKernelImpl <|-- CudaKernel
+    ComputeArray <|-- CudaArray
+    ComputeContext <|-- CudaContext
+    '/
+
+    'ComputeContext <-- CommonIntegrateImageLangevinStepKernel
+    'ComputeArray <-- CommonIntegrateImageLangevinStepKernel
+    'ComputeKernelImpl <-- CommonIntegrateImageLangevinStepKernel : -ComputeKernel
+    IntegrateImageLangevinStepKernel <|-down- CommonIntegrateImageLangevinStepKernel
+    class CommonIntegrateImageLangevinStepKernel{
+        - zmax : double
+        - hasInitializedKernels : bool
+        - cc : ComputeContext&
+        - params : ComputeArray
+        - kernel1 : ComputeKernel
+        - kernel2 : ComputeKernel
+        ...
+        --
+        ...
+    }
+    'ComputeContext <-- CommonImageParticleKernel
+    'ComputeArray <-- CommonImageParticleKernel
+    'ComputeKernelImpl <-- CommonImageParticleKernel : -ComputeKernel
+    ImageParticleKernel <|-- CommonImageParticleKernel
+    class CommonImageParticleKernel{
+        - zmax : double
+        - cc : ComputeContext&
+        - hasInitializedKernels : bool
+        - imagePairs : ComputeArray
+        - kernelImage : ComputeArray
+        --
+        ...
+    }
+
+    CommonImageKernelSources "device code"<..up. CommonIntegrateImageLangevinStepKernel
+    CommonImageKernelSources "device code"<..up. CommonImageParticleKernel 
+    class CommonImageKernelSources {
+        + integrateLangevinPart1(...) : KERNEL void
+        + integrateLangevinPart2(...) : KERNEL void
+        + selectLangevinStepSize(...) : KERNEL void
+        + updateImageParticlePositions(...) :KERNEL void
+    }
+
+    'Platform <... CudaImageKernelFactory
+    'ContextImpl <... CudaImageKernelFactory
+    'KernelFactory <|-- CudaImageKernelFactory
+    CudaImageKernelFactory ...> CommonIntegrateImageLangevinStepKernel : <<create>>
+    CudaImageKernelFactory ...> CommonImageParticleKernel : <<create>>
+    class CudaImageKernelFactory{
+        + createKernelImpl(name : string, platform : Platform&, context : ContextImpl&) : KernelImpl*
+    }
+}
+
+
+' note top of ImageLangevinIntegrator : Export
+
+/'
+Kernel -left-> KernelImpl
+Kernel <... KernelImpl : <<friend>>
+System <-- ContextImpl
+ContextImpl --> Kernel
+'/
+
+
+
+@enduml
