@@ -11,8 +11,7 @@ steps:
 
 1. Create a directory in which to build the plugin.
 
-2. Set environmental variables such as CXXFLAGS='-std=c++11', CC=gcc, CXX=g++, 
-OPENMM_CUDA_COMPILER=$(which nvcc).
+2. Set environmental variables such as CXXFLAGS='-std=c++11', CC=gcc, CXX=g++, OPENMM_CUDA_COMPILER=$(which nvcc).
 
 3. Run the CMake GUI or ccmake, specifying your new directory as the build directory and the top
 level directory of this project as the source directory. (This CMakeLists.txt only supports building 
@@ -49,9 +48,9 @@ Usage
 The image charge method is an effienct method to deal with the surface polarization. Here we reconstructed 
 the image charge method in OpenMM 7.7.0 or higher versions with Langevin and Custom Integrators. Note that 
 the plugin can only used in the system with two parallel conductor planes. Refer to 
-[this articles](https://doi.org/10.1073/pnas.2020615118), 
-[this articles](https://doi.org/10.1063/5.0040172), 
-[this articles](https://pubs.acs.org/doi/10.1021/acs.jpcc.9b06635) for more details of this method.
+[this article](https://doi.org/10.1073/pnas.2020615118), 
+[this article](https://doi.org/10.1063/5.0040172), 
+[this article](https://pubs.acs.org/doi/10.1021/acs.jpcc.9b06635) for more details of this method.
 
 ### ImageLangevinIntegrator
 ```python
