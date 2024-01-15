@@ -207,7 +207,7 @@ if constEfield._value > 0:
 # add image particles for all real particles regardless of the charge
 for i in range(nRealAtoms):
     (q, dip, quad, axisType, atomZ, atomX, atomY, thole, dampFactor, polarity) = mtpForce.getMultipoleParameters(i)
-    newAtom = topology.addAtom('IM', next(atoms).element.symbol, newResidue)
+    newAtom = topology.addAtom('IM', next(atoms).element, newResidue)
     pos = position_anneal3[i].value_in_unit(nanometer)
     if q != -q:
         # position the image charge particles at the mirror location with respect to the left wall at z=0
