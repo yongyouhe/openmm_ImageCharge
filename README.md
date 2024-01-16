@@ -89,9 +89,12 @@ integrator.setCellSize(zbox)
 mtpForce = [f for f in [system.getForce(i) for i in range(system.getNumForces())] if type(f) == AmoebaMultipoleForce][0]
 for i in range(nRealAtoms):
     (q, dip, quad, axisType, atomZ, atomX, atomY, thole, dampFactor, polarity) = mtpForce.getMultipoleParameters(i)
-    newAtom = topology.addAtom('IM', next(atoms).element.symbol, newResidue)
+    newAtom = topology.addAtom('IM', next(atoms).element, newResidue)
     idxat = system.addParticle(0*dalton)
-    idxat2 = mtpForce.addMultipole(q, dip, quad, axisType, atomZ, atomX, atomY, thole, dampFactor, polarity)
+    dip1 = Quantity((dip[0], dip[1], -dip[2])).in_units_of(nanometer*elementary_charge)
+    quad1 = Quantity(tuple(-d for d in quad)).in_units_of(nanometer**2*elementary_charge)
+    idxat2 = mtpForce.addMultipole(-q, dip1, quad1, axisType, atomZ+nRealAtoms, atomX+nRealAtoms, atomY+nRealAtoms,
+                                   thole, dampFactor, polarity)
     # add image pairs
     imageInteg.setImagePair(idxat, i)
 ```
