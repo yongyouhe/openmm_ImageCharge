@@ -218,7 +218,10 @@ for i in range(nRealAtoms):
         # (This is required for the wall atoms)
         position_anneal3.append((pos[0], pos[1], -pos[2]+0.001)*nanometer)
     idxat = system.addParticle(0*dalton)
-    idxat2 = mtpForce.addMultipole(q, dip, quad, axisType, atomZ, atomX, atomY, thole, dampFactor, polarity)
+    dip1 = Quantity((dip[0], dip[1], -dip[2])).in_units_of(nanometer*elementary_charge)
+    quad1 = Quantity(tuple(-d for d in quad)).in_units_of(nanometer**2*elementary_charge)
+    idxat2 = mtpForce.addMultipole(-q, dip1, quad1, axisType, atomZ+nRealAtoms, atomX+nRealAtoms, atomY+nRealAtoms,
+                                   thole, dampFactor, polarity)
     # print("idxat: "+ str(idxat) + ", idxat2: "+ str(idxat2))
     # add image pairs
     imageInteg.setImagePair(idxat, i)
