@@ -91,7 +91,7 @@ for i in range(nRealAtoms):
     (q, dip, quad, axisType, atomZ, atomX, atomY, thole, dampFactor, polarity) = mtpForce.getMultipoleParameters(i)
     newAtom = topology.addAtom('IM', next(atoms).element, newResidue)
     idxat = system.addParticle(0*dalton)
-    dip1 = Quantity((dip[0], dip[1], -dip[2])).in_units_of(nanometer*elementary_charge)
+    dip1 = Quantity((-dip[0], -dip[1], dip[2])).in_units_of(nanometer*elementary_charge)
     quad1 = Quantity(tuple(-d for d in quad)).in_units_of(nanometer**2*elementary_charge)
     idxat2 = mtpForce.addMultipole(-q, dip1, quad1, axisType, atomZ+nRealAtoms, atomX+nRealAtoms, atomY+nRealAtoms,
                                    thole, dampFactor, polarity)
