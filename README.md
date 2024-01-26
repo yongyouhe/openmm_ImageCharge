@@ -34,7 +34,8 @@ and that IMAGE_BUILD_CUDA_LIB is selected.
 
 10. Use the build system you selected to build and install the plugin. 
 Performing three sets of commands 'make / make install / make PythonInstall' will install the plugin
-as 'drudenoseplugin' package in your python
+as 'imageplugin' package in your python. The version of swig should be higher than 3.0 and lower than 
+4.2.
 
 Note: If you want to use the ImageCustomIntegrator in OpenMM 8.0, you need to 
 copy the folder asmjit of OpenMM to the library folder in the plugin for substitution. 
@@ -91,7 +92,7 @@ for i in range(nRealAtoms):
     (q, dip, quad, axisType, atomZ, atomX, atomY, thole, dampFactor, polarity) = mtpForce.getMultipoleParameters(i)
     newAtom = topology.addAtom('IM', next(atoms).element, newResidue)
     idxat = system.addParticle(0*dalton)
-    dip1 = Quantity((-dip[0], -dip[1], dip[2])).in_units_of(nanometer*elementary_charge)
+    dip1 = Quantity((-dip[0], -dip[1], -dip[2])).in_units_of(nanometer*elementary_charge)
     quad1 = Quantity(tuple(-d for d in quad)).in_units_of(nanometer**2*elementary_charge)
     idxat2 = mtpForce.addMultipole(-q, dip1, quad1, axisType, atomZ+nRealAtoms, atomX+nRealAtoms, atomY+nRealAtoms,
                                    thole, dampFactor, polarity)
@@ -109,6 +110,16 @@ from pytools/mcbarostate import *
 
 barostat = Barostat(simulation, pressure, temperature, barostatInterval)
 barostat.step_poly(equilibrationSteps)
+```
+
+### The scirpt for converting the Tinker prm file to OpenMM xml file.
+
+The tinker2openmm.py is modified based on one scirpt file of [the repo](https://github.com/Inniag/openmm-scripts-amoeba). 
+Here the modified script supports the Z-Bisector local axis type and some other
+parameters, and adds some options which can be seen in detail with "--help".
+Typically, use the script as follow.
+```
+python3 tinker2openmm.py -resname chcl3 -input_xyz=chloroform -input_prm=chcl3 -xml_bond=number
 ```
 
 For more detailed usage, please refer to the scripts.
@@ -134,7 +145,7 @@ Portions copyright (c) 2023 the Authors.
 Authors: Ruochao Wang
 
 Contributors: 
-Part of the code comes from [scychon's openmm_constV](https://github.com/scychon/openmm_constV).
+Part of the plugin code comes from [scychon's openmm_constV](https://github.com/scychon/openmm_constV).
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),

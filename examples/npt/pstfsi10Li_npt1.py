@@ -68,7 +68,7 @@ for f in system.getForces():
             or isinstance(f, AmoebaWcaDispersionForce)):
             f.setForceGroup(1)
 
-integrator = MTSLangevinIntegrator(temperature, freq, timestep, [(0,8), (1,1)])
+integrator = MTSLangevinIntegrator(temperature, freq, timestep, [(0,4), (1,1)])
 nRealAtoms = system.getNumParticles()
 #for f in [system.getForce(i) for i in range(system.getNumForces())]:
 #    print(type(f))
@@ -113,7 +113,6 @@ for igrpBot in grpBottom:
         if np.linalg.norm(dr._value)*nanometer < .5*nanometer and igrpBot != jgrpBot:
             exvdwParticleIndex.append(jgrpBot)
     vdwForce.setParticleExclusions(igrpBot, exvdwParticleIndex)
-# vdwForce.getParticleExclusions(3877)
 
 # set force group to report each energy components
 for i in range(system.getNumForces()):
@@ -138,20 +137,6 @@ simulation.reporters.append(StateDataReporter(output+'eq_'+input_name+'.log', 10
                                               speed=True, progress=True, potentialEnergy=True, temperature=True,
                                               volume=True, remainingTime=True, density=True, separator='\t'))
 print('Equilibrating...')
-#with open(output+input_name+'_ener.log', 'w') as enerlog:
-#    enerlog.write('# Energy log file\n')
-#    enerlog.write('# x1 : time (ps)\n')
-#    for j in range(system.getNumForces()):
-#        f = system.getForce(j)
-#        enerlog.write('# x'+str(j+2) + ' : ' +str(type(f)) + ' (kJ/mol)\n')
-#    for i in range(1, int(equilibrationSteps/50+1)):
-#        barostat.step_poly(50)
-#        enerlog.write(str(i*50))
-#        for j in range(system.getNumForces()):
-#            f = system.getForce(j)
-#            enerlog.write('  ' + str(simulation.context.getState(getEnergy=True, groups=2**j).getPotentialEnergy().value_in_unit(kilojoule_per_mole)))
-#        enerlog.write('\n')
-#        enerlog.flush()
 barostat.step_poly(equilibrationSteps)
 
 state = simulation.context.getState(getEnergy=True, getForces=True, getPositions=True,

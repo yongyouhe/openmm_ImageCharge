@@ -5,9 +5,7 @@ from openmm import *
 from openmm.unit import *
 import time
 import sys
-# from mdtools import vvintegrator
 from imageplugin import ImageCustomIntegrator
-# from constvplugin import *
 from imagemtsintegrator import *
 
 time_start = time.time()
@@ -54,12 +52,6 @@ output = 'output/'
 print('Building system...')
 platform = Platform.getPlatformByName('CUDA')
 platformProperties = {'Precision': 'mixed', 'DeviceIndex': '0'}
-
-
-# set the electric filed
-constV = 0*volt  # potential difference between two parallel electrodes
-# electric field calculated for the gap between the two electrode
-constEfield = (constV*elementary_charge*AVOGADRO_CONSTANT_NA/(zmax*nanometer)).in_units_of(kilojoule_per_mole/nanometer)
 
 # ##########################
 # Setup the simulation system topology and initial positions
@@ -218,7 +210,7 @@ for i in range(nRealAtoms):
         # (This is required for the wall atoms)
         position_anneal3.append((pos[0], pos[1], -pos[2]+0.001)*nanometer)
     idxat = system.addParticle(0*dalton)
-    dip1 = Quantity((-dip[0], -dip[1], dip[2])).in_units_of(nanometer*elementary_charge)
+    dip1 = Quantity((-dip[0], -dip[1], -dip[2])).in_units_of(nanometer*elementary_charge)
     quad1 = Quantity(tuple(-d for d in quad)).in_units_of(nanometer**2*elementary_charge)
     idxat2 = mtpForce.addMultipole(-q, dip1, quad1, axisType, atomZ+nRealAtoms, atomX+nRealAtoms, atomY+nRealAtoms,
                                    thole, dampFactor, polarity)
@@ -227,25 +219,14 @@ for i in range(nRealAtoms):
     imageInteg.setImagePair(idxat, i)
     # add fake bond between image and parent so that they are always in the same periodic cell
     hbForce.addBond(idxat, i, 0, 0)
-    # add charged particles into constVForce to apply the E_field by the walls
-    # (either potential difference or charged wall)
-    if constEfield._value > 0:
-        idxres = constVForce.addParticle(i, [q])
 
 # print the image pairs
 # print(imageInteg.getImagePairs())
 
-# add the E-field external force to the system
-if constEfield._value > 0:
-    system.addForce(constVForce)
-
 ##########################
 # Add exclusion for image particles
 ##########################
-# keep the electrostatic part (q) but ignore the vdW interaction
 print('number of all atoms is '+str(system.getNumParticles()))
-# print('number of nonbonded force particles is '+str(nbforce.getNumParticles()))
-
 # There are no electrostatic interactions between real atoms within 1-2 and 1-3.
 # There are no vdw interactions between image particles.
 # Need to set covalent maps for image particles to construct the exception between 1-2 mpoles.
@@ -273,9 +254,6 @@ simulation.context.setPositions(position_anneal3)
 # write the pdb file before beginning
 print('The kinetic energy after annealing is '+str(stat_anneal3.getKineticEnergy()))
 print('The potential energy after annealing is '+str(stat_anneal3.getPotentialEnergy()))
-# minimize and equilibrate
-# print('Performing the energy minimization...')
-# simulation.minimizeEnergy()
 
 #############################
 # Actual simulation routine
@@ -287,9 +265,9 @@ position_eq = state_eq.getPositions()
 PDBFile.writeFile(simulation.topology, position_eq, open(output+'eq_'+input_name+'.pdb', 'w'))
 
 print('Simulating and sampling...')
-simulation.reporters.append(DCDReporter(output+'samp_' +input_name+'.dcd', 2000))
-simulation.reporters.append(StateDataReporter(output+'samp_'+input_name+'.log', 2000, totalSteps=samplingSteps,
-                                              step=True, potentialEnergy=True, kineticEnergy=True,
+simulation.reporters.append(DCDReporter(output+'samp_' +input_name+'.dcd', 10000))
+simulation.reporters.append(StateDataReporter(output+'samp_'+input_name+'.log', 10000, totalSteps=samplingSteps,
+                                              step=True, potentialEnergy=True, kineticEnergy=True, progress=True,
                                               totalEnergy=True, temperature=True, speed=True, remainingTime=True,
                                               density=True, separator='\t'))
 simulation.reporters.append(CheckpointReporter(output+'samp_'+input_name+'.chk', 50000))
@@ -309,22 +287,35 @@ with open(output+'samp_'+input_name+'_ener.log', 'w') as enerlog:
         f = system.getForce(j)
         enerlog.write('# x'+str(j+2) + ' : ' + str(type(f)) + ' (kJ/mol) '+'forceGroup: '+str(f.getForceGroup())+'\n')
 
-    with open(output+'samp'+input_name+'_dipole.log', 'w') as dipolog:
+    with open(output+'samp_'+input_name+'_dipole.log', 'w') as dipolog:
         dipolog.write("Induced dipoles of each particles.\n")
 
-        for i in range(1, int(samplingSteps/2000)+1):
-            simulation.step(2000)
-            enerlog.write(str(i*2000))
+        for i in range(1, int(samplingSteps/10000)+1):
+            simulation.step(10000)
+            enerlog.write(str(i*10000))
             for j in range(system.getNumForces()):
                 f = system.getForce(j)
                 enerlog.write('  ' + str(simulation.context.getState(getEnergy=True, groups=2**j).getPotentialEnergy().value_in_unit(kilojoule_per_mole)))
             enerlog.write('\n')
-            enerlog.flush()  # 刷新缓冲区，即将缓冲区中的数据立刻写入文件，同时清空缓冲区
+            enerlog.flush()  # flush buffers
 
-            dipolog.write(str(i*2000)+'\n')
-            for k in mtpForce.getInducedDipoles(simulation.context):
-                dipolog.write(str(k) + '\n')
-            dipolog.write("Total dipoles: "+str(mtpForce.getTotalDipoles(simulation.context))+'\n')
+            dipolog.write(str(i*10000)+'\n')
+            inducedDip = mtpForce.getInducedDipoles(simulation.context)
+            perDip = mtpForce.getLabFramePermanentDipoles(simulation.context)
+            totalDip = mtpForce.getTotalDipoles(simulation.context)
+            # if is_quantity(inducedDip):
+            #     print("is quantity.")
+            #     inducedDip = inducedDip.value_in_unit(nanometer*elementary_charge)
+            for k in range(nRealAtoms*2):
+                dipolog.write('{:<6}'.format(str(k)))
+                idip = inducedDip[k]
+                # print(idip)
+                dipolog.write('{:>8.4f}{:>8.4f}{:>8.4f}'.format(idip.x, idip.y, idip.z))
+                pdip = perDip[k]
+                dipolog.write('{:>8.4f}{:>8.4f}{:>8.4f}'.format(pdip.x, pdip.y, pdip.z))
+                tdip = totalDip[k]
+                dipolog.write('{:>8.4f}{:>8.4f}{:>8.4f}'.format(tdip.x, tdip.y, tdip.z))
+                dipolog.write('\n')
             dipolog.flush()
 
 
