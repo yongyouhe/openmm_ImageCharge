@@ -1069,11 +1069,6 @@ void CommonImageParticleKernel::initialize(const System& system, const ImageInte
     if(numAtoms%numCells != 0)
         throw OpenMMException("The number of particles is not multiple of the number of cells!");
 
-    for(int i=numAtoms/numCells; i<numAtoms; i++){
-        if(system.getParticleMass(i) != 0.0)
-            throw OpenMMException("The mass of the image particle "+to_string(i)+" is not zero!");
-    }
-
     //check the unit cell
     Vec3 x, y, z;
     system.getDefaultPeriodicBoxVectors(x, y, z);
@@ -1087,8 +1082,11 @@ void CommonImageParticleKernel::initialize(const System& system, const ImageInte
 
     //upload imagePairs to comupte array imagePairs as vector
     vector<mm_int2> imagePairsVec;
-    for(auto pair: integrator.getImagePairs())
+    for(auto pair: integrator.getImagePairs()){
         imagePairsVec.push_back(mm_int2(pair.first, pair.second));
+        if(system.getParticleMass(pair.first) != 0.0)
+            cout<<"Warning! The mass of the image particle "<<pair.first<<" is not zero!"<<endl;
+    }
 
     imagePairs.initialize<mm_int2>(cc, max((int) imagePairsVec.size(), 1), "imagePairs");
     cout<<"imagePairsVec.size(): "<<imagePairsVec.size()<<endl;
