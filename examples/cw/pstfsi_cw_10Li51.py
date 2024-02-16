@@ -217,8 +217,6 @@ for i in range(nRealAtoms):
     # print("idxat: "+ str(idxat) + ", idxat2: "+ str(idxat2))
     # add image pairs
     imageInteg.setImagePair(idxat, i)
-    # add fake bond between image and parent so that they are always in the same periodic cell
-    hbForce.addBond(idxat, i, 0, 0)
 
 # print the image pairs
 # print(imageInteg.getImagePairs())
