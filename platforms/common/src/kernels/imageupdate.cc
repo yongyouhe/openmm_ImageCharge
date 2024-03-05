@@ -3,13 +3,16 @@
  * Update the positions of image particles.
  */
 KERNEL void updateImageParticlePositions(GLOBAL real4* RESTRICT posq, GLOBAL real4* RESTRICT posqCorrection, 
-        GLOBAL const int2* RESTRICT imagePairs, mixed zmax) {
+        GLOBAL const int2* RESTRICT imagePairs, mixed zmax, int* RESTRICT invAtomOrder) {
     
     for(int i = GLOBAL_ID; i < NUM_IMAGES; i += GLOBAL_SIZE) {
         int2 pair = imagePairs[i];
-        int indexImg = pair.x;
-        int indexPar = pair.y;
-
+        int indexImg = invAtomOrder[pair.x];
+        int indexPar = invAtomOrder[pair.y];
+        
+        // if(posq[indexPar].z > zmax*2){
+        //     printf("The previous parent particle coord is %f %f\n", posq[indexPar].z, posqCorrection[indexPar]);
+        // }
         if(posq[indexPar].w != -posq[indexPar].w) {//charge of particle is not 0.
 #ifdef USE_MIXED_PRECISION
             real4 pos1 = posq[indexPar];
@@ -27,12 +30,24 @@ KERNEL void updateImageParticlePositions(GLOBAL real4* RESTRICT posq, GLOBAL rea
             posq[indexImg] = pos;
 #endif
         }
-        /*
-        if(i < 5){
-            printf("i = %d, indexImg = %d, indexPar = %d, posq[img] = %f %f %f %f, posq[par] = %f %f %f %f\n", 
-                    i, indexImg, indexPar, posq[indexImg].x, posq[indexImg].y, posq[indexImg].z, posq[indexImg].w,
-                    posq[indexPar].x, posq[indexPar].y, posq[indexPar].z, posq[indexPar].w);
-        }
-        */
+
+        // if(posq[indexPar].z > zmax*2){
+        //     printf("i = %d, indexImg = %d, indexPar = %d, posq[img] = %f %f %f %f, posq[par] = %f %f %f %f\n", 
+        //             i, indexImg, indexPar, posq[indexImg].x, posq[indexImg].y, posq[indexImg].z, posq[indexImg].w,
+        //             posq[indexPar].x, posq[indexPar].y, posq[indexPar].z, posq[indexPar].w);
+        // }
+
+    }
+}
+
+/**
+ * Record the atom index
+ */
+KERNEL void recordAtomIndexes(int numAtoms, int* RESTRICT atomIndex, int* RESTRICT invAtomOrder) {
+
+    int index = GLOBAL_ID;
+    while (index < numAtoms) {
+        invAtomOrder[atomIndex[index]] = index; //invAtomOrder里atomindex对应index
+        index += GLOBAL_SIZE;
     }
 }

@@ -219,8 +219,8 @@ public:
 private:
     ComputeContext& cc;
     bool hasInitializedKernels;
-    ComputeArray imagePairs;
-    ComputeKernel kernelImage;
+    ComputeArray imagePairs, invAtomOrder;
+    ComputeKernel kernelImage, kernelRecord;
     double zmax;
 };
 

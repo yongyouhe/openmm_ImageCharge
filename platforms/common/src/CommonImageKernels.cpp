@@ -1083,6 +1083,7 @@ void CommonImageParticleKernel::initialize(const System& system, const ImageInte
     //upload imagePairs to comupte array imagePairs as vector
     vector<mm_int2> imagePairsVec;
     for(auto pair: integrator.getImagePairs()){
+        //cout<<pair.first<<" "<<pair.second<<endl;
         imagePairsVec.push_back(mm_int2(pair.first, pair.second));
         if(system.getParticleMass(pair.first) != 0.0)
             cout<<"Warning! The mass of the image particle "<<pair.first<<" is not zero!"<<endl;
@@ -1094,13 +1095,16 @@ void CommonImageParticleKernel::initialize(const System& system, const ImageInte
     if(imagePairsVec.size() > 0)
         imagePairs.upload(imagePairsVec);
 
+    invAtomOrder.initialize<int>(cc, cc.getNumAtoms(), "invAtomOrder");
+
     // Create kernels
     map<string, string> defines;
     defines["NUM_IMAGES"] = cc.intToString(imagePairsVec.size());
     defines["PADDED_NUM_ATOMS"] = cc.intToString(cc.getPaddedNumAtoms());
     ComputeProgram program = cc.compileProgram(CommonImageKernelSources::imageupdate, defines);//add the vectorOps.cc automatically
+    kernelRecord = program->createKernel("recordAtomIndexes");
     kernelImage = program->createKernel("updateImageParticlePositions");
-    
+     
     cout<<"ImageParticleKernel module is created.\n"
         <<"     Number of image pairs: "<<imagePairsVec.size()<<"\n"
         <<"     Number of cells:       "<<numCells<<"\n"
@@ -1114,6 +1118,12 @@ void CommonImageParticleKernel::updateImagePositions(ContextImpl& context, const
     float zLocationFloat = (float) zmax;
     if(!hasInitializedKernels){
         hasInitializedKernels = true;
+        if(cc.getStepCount()<=1 || cc.getAtomsWereReordered()){
+            kernelRecord->addArg(cc.getNumAtoms());
+            kernelRecord->addArg(cc.getAtomIndexArray());
+            kernelRecord->addArg(invAtomOrder);
+        }
+
         kernelImage->addArg(cc.getPosq());
         if(cc.getUseMixedPrecision())
             kernelImage->addArg(cc.getPosqCorrection());//deliver cc.getPosqCorrection().getDevicePointer() to cuFunction finally.
@@ -1124,6 +1134,11 @@ void CommonImageParticleKernel::updateImagePositions(ContextImpl& context, const
             kernelImage->addArg(zmax);
         else
             kernelImage->addArg(zLocationFloat);
+        kernelImage->addArg(invAtomOrder);
     }
+    if(cc.getStepCount()<=1 || cc.getAtomsWereReordered())
+        kernelRecord->execute(cc.getNumAtoms());
     kernelImage->execute(integrator.getImagePairs().size());
+
+    //cc.reorderAtoms();
 }
