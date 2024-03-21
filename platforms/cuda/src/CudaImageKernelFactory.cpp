@@ -51,6 +51,7 @@ extern "C" OPENMM_EXPORT void registerKernelFactories() {
         platform.registerKernelFactory(IntegrateImageLangevinStepKernel::Name(), factory);
         platform.registerKernelFactory(ImageParticleKernel::Name(), factory);
         platform.registerKernelFactory(IntegrateImageCustomStepKernel::Name(), factory);
+        platform.registerKernelFactory(ApplyMCZBarostatKernel::Name(), factory);
     }
     catch (std::exception ex) {
         // Ignore
@@ -76,5 +77,7 @@ KernelImpl* CudaImageKernelFactory::createKernelImpl(std::string name, const Pla
         return new CommonImageParticleKernel(name, platform, cu);
     if (name == IntegrateImageCustomStepKernel::Name())
         return new CommonIntegrateImageCustomStepKernel(name, platform, cu);
+    if (name == ApplyMCZBarostatKernel::Name())
+        return new CommonApplyMCZBarostatKernel(name, platform, cu);    
     throw OpenMMException((std::string("Tried to create kernel with illegal kernel name '")+name+"'").c_str());
 }

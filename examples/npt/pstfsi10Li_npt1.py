@@ -3,7 +3,7 @@ from openmm import *
 from openmm.unit import *
 import time
 import sys
-from mcbarostate import *
+#from mcbarostate import *
 import numpy as np
 import itertools
 
@@ -14,7 +14,6 @@ start_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time_start))
 sys.setrecursionlimit(2500)
 
 # integration parameters
-# pressure = Vec3(1.0, 1.0, 1.0) * atmospheres
 pressure = 1*atmospheres
 temperature = 298 * kelvin
 freq = 1.0 / picosecond
@@ -44,9 +43,6 @@ output = 'output/'
 print('Building system...')
 platform = Platform.getPlatformByName('CUDA')
 platformProperties = {'Precision': 'mixed', 'DeviceIndex': '0'}
-# if there is no connect info of graphene residue, need to creat a file to store the bond info of graphene
-# pdb.topology.loadBondDefinitions('GrapheneConnectivity.xml')
-# pdb.topology.createStandardBonds()
 
 topology = pdb.topology
 position = pdb.positions
@@ -59,7 +55,7 @@ system = forceField.createSystem(topology, nonbondedMethod=PME, nonbondedCutoff=
                                  mutualInducedTargetEpsilon=mutualInducedTargetEpsilon, 
                                  mutualInducedMaxIterations=inducedMaxIteration,
                                  constraints=HBonds, rigidWater=True)
-#system.addForce(MonteCarloBarostat(pressure, temperature, barostatInterval))
+system.addForce(MCZBarostat(pressure, temperature, barostatInterval))
 
 for f in system.getForces():
         if (isinstance(f, AmoebaMultipoleForce)
@@ -67,8 +63,10 @@ for f in system.getForces():
             or isinstance(f, AmoebaGeneralizedKirkwoodForce)
             or isinstance(f, AmoebaWcaDispersionForce)):
             f.setForceGroup(1)
+        if f.getName() == 'MCZBarostat':
+            f.setForceGroup(2)
 
-integrator = MTSLangevinIntegrator(temperature, freq, timestep, [(0,4), (1,1)])
+integrator = MTSLangevinIntegrator(temperature, freq, timestep, [(0,8), (1,1)])
 nRealAtoms = system.getNumParticles()
 #for f in [system.getForce(i) for i in range(system.getNumForces())]:
 #    print(type(f))
@@ -123,7 +121,7 @@ for i in range(system.getNumForces()):
 
 simulation = Simulation(topology, system, integrator, platform, platformProperties)
 simulation.context.setPositions(position)
-barostat = Barostat(simulation, pressure, temperature, barostatInterval)
+#barostat = Barostat(simulation, pressure, temperature, barostatInterval)
 
 # minimize and equilibrate
 print('Performing the energy minimization...')
@@ -137,7 +135,21 @@ simulation.reporters.append(StateDataReporter(output+'eq_'+input_name+'.log', 10
                                               speed=True, progress=True, potentialEnergy=True, temperature=True,
                                               volume=True, remainingTime=True, density=True, separator='\t'))
 print('Equilibrating...')
-barostat.step_poly(equilibrationSteps)
+#with open(output+input_name+'_ener.log', 'w') as enerlog:
+#    enerlog.write('# Energy log file\n')
+#    enerlog.write('# x1 : time (ps)\n')
+#    for j in range(system.getNumForces()):
+#        f = system.getForce(j)
+#        enerlog.write('# x'+str(j+2) + ' : ' +str(type(f)) + ' (kJ/mol)\n')
+#    for i in range(1, int(equilibrationSteps/50+1)):
+#        barostat.step_poly(50)
+#        enerlog.write(str(i*50))
+#        for j in range(system.getNumForces()):
+#            f = system.getForce(j)
+#            enerlog.write('  ' + str(simulation.context.getState(getEnergy=True, groups=2**j).getPotentialEnergy().value_in_unit(kilojoule_per_mole)))
+#        enerlog.write('\n')
+#        enerlog.flush()
+simulation.step(equilibrationSteps)
 
 state = simulation.context.getState(getEnergy=True, getForces=True, getPositions=True,
                                     enforcePeriodicBox=True)

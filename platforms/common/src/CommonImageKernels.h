@@ -224,6 +224,51 @@ private:
     double zmax;
 };
 
+/**
+ * This kernel is invoked by MCZBarostat to adjust the periodic box volume
+ */
+class CommonApplyMCZBarostatKernel : public ApplyMCZBarostatKernel {
+public:
+    CommonApplyMCZBarostatKernel(std::string name, const Platform& platform, ComputeContext& cc) : ApplyMCZBarostatKernel(name, platform), cc(cc),
+            hasInitializedKernels(false) {
+    }
+    /**
+     * Initialize the kernel.
+     *
+     * @param system     the System this kernel will be applied to
+     * @param barostat   the MonteCarloBarostat this kernel will be used for
+     * @param rigidMolecules  whether molecules should be kept rigid while scaling coordinates
+     */
+    void initialize(const System& system, const Force& barostat, bool rigidMolecules=true);
+    /**
+     * Attempt a Monte Carlo step, scaling particle positions (or cluster centers) by a specified value.
+     * This version scales the x, y, and z positions independently.
+     * This is called BEFORE the periodic box size is modified.  It should begin by translating each particle
+     * or cluster into the first periodic box, so that coordinates will still be correct after the box size
+     * is changed.
+     *
+     * @param context    the context in which to execute this kernel
+     * @param scaleZ     the scale factor by which to multiply particle z-coordinate
+     */
+    void scaleCoordinates(ContextImpl& context, double scaleZ);
+    /**
+     * Reject the most recent Monte Carlo step, restoring the particle positions to where they were before
+     * scaleCoordinates() was last called.
+     *
+     * @param context    the context in which to execute this kernel
+     */
+    void restoreCoordinates(ContextImpl& context);
+private:
+    ComputeContext& cc;
+    bool hasInitializedKernels, rigidMolecules;
+    int numMolecules;
+    ComputeArray savedPositions, savedFloatForces, savedLongForces;
+    ComputeArray moleculeAtoms;
+    ComputeArray moleculeStartIndex;
+    ComputeKernel kernel;
+    std::vector<int> lastAtomOrder;
+};
+
 } // namespace ImagePlugin
 
 #endif /*COMMON_IMAGE_KERNELS_H_*/

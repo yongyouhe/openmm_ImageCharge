@@ -13,6 +13,7 @@
 %include "std_pair.i"
 %include "std_string.i"
 
+
 namespace std {
   %template(vectord) vector<double>;
   %template(vectori) vector<int>;
@@ -25,6 +26,9 @@ namespace std {
 #include "OpenMMDrude.h"
 #include "openmm/RPMDIntegrator.h"
 #include "openmm/RPMDMonteCarloBarostat.h"
+#include "openmm/serialization/SerializationNode.h"
+#include "openmm/serialization/SerializationProxy.h"
+#include "openmm/serialization/XmlSerializer.h"
 
 using namespace OpenMM;
 
@@ -65,6 +69,15 @@ import openmm.unit as unit
         s = ("the %s object does not own its corresponding OpenMM object"
              % self.__class__.__name__)
         raise Exception(s)
+%}
+
+%pythonprepend OpenMM::MCZBarostat::setDefaultPressure(double pressure) %{
+    if unit.is_quantity(pressure):
+        pressure = pressure.value_in_unit(unit.bar)
+%}
+%pythonprepend OpenMM::MCZBarostat::setDefaultTemperature(double temp) %{
+    if unit.is_quantity(temp):
+        temp = temp.value_in_unit(unit.kelvin)
 %}
 
 /*
@@ -128,7 +141,21 @@ int isNumpyAvailable() {
     }
 }
 
+
 namespace OpenMM {
+
+%factory(OpenMM::Force& OpenMM::System::getForce,
+         OpenMM::MCZBarostat);
+
+%factory(OpenMM::Force* OpenMM_XmlSerializer__cloneForce,
+         OpenMM::MCZBarostat);
+
+%factory(OpenMM::Force* OpenMM_XmlSerializer__deserializeForce,
+         OpenMM::MCZBarostat);
+
+%copyctor MCZBarostat ;
+class MCZBarostat ;
+
 
 class ImageIntegrator {
 public:
@@ -220,6 +247,23 @@ public:
    int getRandomNumberSeed() const ;
    void setRandomNumberSeed(int seed) ;
    virtual void step(int steps) ;
+};
+
+class MCZBarostat : public Force {
+public:
+   MCZBarostat(double defaultPressure, double defaultTemperature, int frequency=25);
+
+   static const std::string & Pressure();
+   static const std::string & Temperature();
+   double getDefaultPressure() const;
+   void setDefaultPressure(double pressure);
+   int getFrequency() const;
+   void setFrequency(int freq);
+   double getDefaultTemperature() const;
+   void setDefaultTemperature(double temp);
+   int getRandomNumberSeed() const;
+   void setRandomNumberSeed(int seed);
+   virtual bool usesPeriodicBoundaryConditions() const;
 };
 
 

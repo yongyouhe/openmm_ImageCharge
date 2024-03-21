@@ -36,5 +36,6 @@
 #include "openmm/ImageLangevinIntegrator.h"
 #include "openmm/ImageCustomIntegrator.h"
 #include "openmm/ImageIntegrator.h"
+#include "openmm/MCZBarostat.h"
 
 #endif /*OPENMM_IMAGE_H_*/

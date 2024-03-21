@@ -1,12 +1,12 @@
 /* -------------------------------------------------------------------------- *
- *                                OpenMMExample                                 *
+ *                                   OpenMM                                   *
  * -------------------------------------------------------------------------- *
  * This is part of the OpenMM molecular simulation toolkit originating from   *
  * Simbios, the NIH National Center for Physics-Based Simulation of           *
  * Biological Structures at Stanford, funded under the NIH Roadmap for        *
  * Medical Research, grant U54 GM072970. See https://simtk.org.               *
  *                                                                            *
- * Portions copyright (c) 2014 Stanford University and the Authors.           *
+ * Portions copyright (c) 2010-2016 Stanford University and the Authors.      *
  * Authors: Peter Eastman                                                     *
  * Contributors:                                                              *
  *                                                                            *
@@ -29,39 +29,43 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.                                     *
  * -------------------------------------------------------------------------- */
 
-#ifdef WIN32
-#include <windows.h>
-#include <sstream>
-#else
-#include <dlfcn.h>
-#include <dirent.h>
-#include <cstdlib>
-#endif
-
-#include "openmm/OpenMMException.h"
-
-#include "openmm/ImageLangevinIntegrator.h"
-#include "openmm/MCZBarostat.h"
-
-#include "openmm/serialization/ImageLangevinIntegratorProxy.h"
-#include "openmm/serialization/SerializationProxy.h"
 #include "openmm/serialization/MCZBarostatProxy.h"
-
-#if defined(WIN32)
-    #include <windows.h>
-    extern "C" void registerImageSerializationProxies();
-    BOOL WINAPI DllMain(HANDLE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
-        if (ul_reason_for_call == DLL_PROCESS_ATTACH)
-            registerImageSerializationProxies();
-        return TRUE;
-    }
-#else
-    extern "C" void __attribute__((constructor)) registerImageSerializationProxies();
-#endif
+#include "openmm/serialization/SerializationNode.h"
+#include "openmm/Force.h"
+#include "openmm/MCZBarostat.h"
+#include <sstream>
 
 using namespace OpenMM;
+using namespace std;
 
-extern "C" void registerImageSerializationProxies() {
-    SerializationProxy::registerProxy(typeid(ImageLangevinIntegrator), new ImageLangevinIntegratorProxy());
-    SerializationProxy::registerProxy(typeid(MCZBarostat), new MCZBarostatProxy());
+MCZBarostatProxy::MCZBarostatProxy() : SerializationProxy("MCZBarostat") {
+}
+
+void MCZBarostatProxy::serialize(const void* object, SerializationNode& node) const {
+    node.setIntProperty("version", 1);
+    const MCZBarostat& force = *reinterpret_cast<const MCZBarostat*>(object);
+    node.setIntProperty("forceGroup", force.getForceGroup());
+    node.setStringProperty("name", force.getName());
+    node.setDoubleProperty("pressure", force.getDefaultPressure());
+    node.setDoubleProperty("temperature", force.getDefaultTemperature());
+    node.setIntProperty("frequency", force.getFrequency());
+    node.setIntProperty("randomSeed", force.getRandomNumberSeed());
+}
+
+void* MCZBarostatProxy::deserialize(const SerializationNode& node) const {
+    if (node.getIntProperty("version") != 1)
+        throw OpenMMException("Unsupported version number");
+    MCZBarostat* force = NULL;
+    try {
+        force = new MCZBarostat(node.getDoubleProperty("pressure"), node.getDoubleProperty("temperature"), node.getIntProperty("frequency"));
+        force->setForceGroup(node.getIntProperty("forceGroup", 0));
+        force->setName(node.getStringProperty("name", force->getName()));
+        force->setRandomNumberSeed(node.getIntProperty("randomSeed"));
+        return force;
+    }
+    catch (...) {
+        if (force != NULL)
+            delete force;
+        throw;
+    }
 }

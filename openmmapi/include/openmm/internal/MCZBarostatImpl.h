@@ -1,13 +1,17 @@
+#ifndef OPENMM_MCZBAROSTATIMPL_H_
+#define OPENMM_MCZBAROSTATIMPL_H_
+
 /* -------------------------------------------------------------------------- *
- *                                OpenMMExample                                 *
+ *                                   OpenMM                                   *
  * -------------------------------------------------------------------------- *
  * This is part of the OpenMM molecular simulation toolkit originating from   *
  * Simbios, the NIH National Center for Physics-Based Simulation of           *
  * Biological Structures at Stanford, funded under the NIH Roadmap for        *
  * Medical Research, grant U54 GM072970. See https://simtk.org.               *
  *                                                                            *
- * Portions copyright (c) 2014 Stanford University and the Authors.           *
- * Authors: Peter Eastman                                                     *
+ * Portions copyright (c)                                                     *
+ *         2023 ICCAS and the Authors.                                        *
+ * Authors: Ruochao Wang                                                      *
  * Contributors:                                                              *
  *                                                                            *
  * Permission is hereby granted, free of charge, to any person obtaining a    *
@@ -29,39 +33,39 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.                                     *
  * -------------------------------------------------------------------------- */
 
-#ifdef WIN32
-#include <windows.h>
-#include <sstream>
-#else
-#include <dlfcn.h>
-#include <dirent.h>
-#include <cstdlib>
-#endif
-
-#include "openmm/OpenMMException.h"
-
-#include "openmm/ImageLangevinIntegrator.h"
+#include "openmm/internal/ForceImpl.h"
 #include "openmm/MCZBarostat.h"
+#include "openmm/Kernel.h"
+#include <string>
 
-#include "openmm/serialization/ImageLangevinIntegratorProxy.h"
-#include "openmm/serialization/SerializationProxy.h"
-#include "openmm/serialization/MCZBarostatProxy.h"
+namespace OpenMM {
 
-#if defined(WIN32)
-    #include <windows.h>
-    extern "C" void registerImageSerializationProxies();
-    BOOL WINAPI DllMain(HANDLE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
-        if (ul_reason_for_call == DLL_PROCESS_ATTACH)
-            registerImageSerializationProxies();
-        return TRUE;
+/**
+ * This is the internal implementation of MCZBarostat.
+ */
+
+class MCZBarostatImpl : public ForceImpl {
+public:
+    MCZBarostatImpl(const MCZBarostat& owner);
+    void initialize(ContextImpl& context);
+    const MCZBarostat& getOwner() const {
+        return owner;
     }
-#else
-    extern "C" void __attribute__((constructor)) registerImageSerializationProxies();
-#endif
+    void updateContextState(ContextImpl& context, bool& forcesInvalid);
+    double calcForcesAndEnergy(ContextImpl& context, bool includeForces, bool includeEnergy, int groups) {
+        // This force doesn't apply forces to particles.
+        return 0.0;
+    }
+    std::map<std::string, double> getDefaultParameters();
+    std::vector<std::string> getKernelNames();
+private:
+    const MCZBarostat& owner;
+    int step, numAttempted, numAccepted;
+    double lenScale;
+    int numRealRes, numVirtAtoms;
+    Kernel kernel;
+};
 
-using namespace OpenMM;
+} // namespace OpenMM
 
-extern "C" void registerImageSerializationProxies() {
-    SerializationProxy::registerProxy(typeid(ImageLangevinIntegrator), new ImageLangevinIntegratorProxy());
-    SerializationProxy::registerProxy(typeid(MCZBarostat), new MCZBarostatProxy());
-}
+#endif /*OPENMM_MCZBAROSTATIMPL_H_*/

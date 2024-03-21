@@ -1,12 +1,15 @@
+#ifndef OPENMM_MCZBAROSTAT_PROXY_H_
+#define OPENMM_MCZBAROSTAT_PROXY_H_
+
 /* -------------------------------------------------------------------------- *
- *                                OpenMMExample                                 *
+ *                                   OpenMM                                   *
  * -------------------------------------------------------------------------- *
  * This is part of the OpenMM molecular simulation toolkit originating from   *
  * Simbios, the NIH National Center for Physics-Based Simulation of           *
  * Biological Structures at Stanford, funded under the NIH Roadmap for        *
  * Medical Research, grant U54 GM072970. See https://simtk.org.               *
  *                                                                            *
- * Portions copyright (c) 2014 Stanford University and the Authors.           *
+ * Portions copyright (c) 2010 Stanford University and the Authors.           *
  * Authors: Peter Eastman                                                     *
  * Contributors:                                                              *
  *                                                                            *
@@ -29,39 +32,22 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.                                     *
  * -------------------------------------------------------------------------- */
 
-#ifdef WIN32
-#include <windows.h>
-#include <sstream>
-#else
-#include <dlfcn.h>
-#include <dirent.h>
-#include <cstdlib>
-#endif
-
-#include "openmm/OpenMMException.h"
-
-#include "openmm/ImageLangevinIntegrator.h"
-#include "openmm/MCZBarostat.h"
-
-#include "openmm/serialization/ImageLangevinIntegratorProxy.h"
+#include "openmm/internal/windowsExport.h"
 #include "openmm/serialization/SerializationProxy.h"
-#include "openmm/serialization/MCZBarostatProxy.h"
 
-#if defined(WIN32)
-    #include <windows.h>
-    extern "C" void registerImageSerializationProxies();
-    BOOL WINAPI DllMain(HANDLE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
-        if (ul_reason_for_call == DLL_PROCESS_ATTACH)
-            registerImageSerializationProxies();
-        return TRUE;
-    }
-#else
-    extern "C" void __attribute__((constructor)) registerImageSerializationProxies();
-#endif
+namespace OpenMM {
 
-using namespace OpenMM;
+/**
+ * This is a proxy for serializing MonteCarloBarostat objects.
+ */
 
-extern "C" void registerImageSerializationProxies() {
-    SerializationProxy::registerProxy(typeid(ImageLangevinIntegrator), new ImageLangevinIntegratorProxy());
-    SerializationProxy::registerProxy(typeid(MCZBarostat), new MCZBarostatProxy());
-}
+class OPENMM_EXPORT MCZBarostatProxy : public SerializationProxy {
+public:
+    MCZBarostatProxy();
+    void serialize(const void* object, SerializationNode& node) const;
+    void* deserialize(const SerializationNode& node) const;
+};
+
+} // namespace OpenMM
+
+#endif /*OPENMM_MCZBAROSTAT_PROXY_H_*/

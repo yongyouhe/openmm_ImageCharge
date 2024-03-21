@@ -36,6 +36,7 @@
 
 #include "openmm/ImageLangevinIntegrator.h"
 #include "openmm/ImageCustomIntegrator.h"
+#include "openmm/MCZBarostat.h"
 #include "openmm/Platform.h"
 #include "openmm/System.h"
 #include "openmm/Vec3.h"
@@ -146,6 +147,41 @@ namespace OpenMM
          * @param values    a vector containing the values
          */
         virtual void setPerDofVariable(ContextImpl& context, int variable, const std::vector<Vec3>& values) = 0;
+    };
+
+    class ApplyMCZBarostatKernel : public KernelImpl {
+    public:
+        static std::string Name() {
+            return "ApplyMCZBarostat";
+        }
+        ApplyMCZBarostatKernel(std::string name, const Platform& platform) : KernelImpl(name, platform) {
+        }
+        /**
+         * Initialize the kernel.
+         *
+         * @param system          the System this kernel will be applied to
+         * @param barostat        the MonteCarloBarostat this kernel will be used for
+         * @param rigidMolecules  whether molecules should be kept rigid while scaling coordinates
+         */
+        virtual void initialize(const System& system, const Force& barostat, bool rigidMolecules=true) = 0;
+        /**
+         * Attempt a Monte Carlo step, scaling particle positions (or cluster centers) by a specified value.
+         * This version scales z positions. Move the parallel plate first, then scale the positions of molecules with z axis.
+         * This is called BEFORE the periodic box size is modified.  It should begin by translating each particle
+         * or cluster into the first periodic box, so that coordinates will still be correct after the box size
+         * is changed.
+         *
+         * @param context    the context in which to execute this kernel
+         * @param scaleZ     the scale factor by which to multiply particle z-coordinate
+         */
+        virtual void scaleCoordinates(ContextImpl& context, double scaleZ) = 0;
+        /**
+         * Reject the most recent Monte Carlo step, restoring the particle positions to where they were before
+         * scaleCoordinates() was last called.
+         *
+         * @param context    the context in which to execute this kernel
+         */
+        virtual void restoreCoordinates(ContextImpl& context) = 0;
     };
 
     class ImageParticleKernel : public KernelImpl {

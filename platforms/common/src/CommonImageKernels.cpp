@@ -52,6 +52,24 @@ using namespace OpenMM;
 using namespace std;
 using namespace Lepton;
 
+static void setPeriodicBoxArgs(ComputeContext& cc, ComputeKernel kernel, int index) {
+    Vec3 a, b, c;
+    cc.getPeriodicBoxVectors(a, b, c);
+    if (cc.getUseDoublePrecision()) {
+        kernel->setArg(index++, mm_double4(a[0], b[1], c[2], 0.0));
+        kernel->setArg(index++, mm_double4(1.0/a[0], 1.0/b[1], 1.0/c[2], 0.0));
+        kernel->setArg(index++, mm_double4(a[0], a[1], a[2], 0.0));
+        kernel->setArg(index++, mm_double4(b[0], b[1], b[2], 0.0));
+        kernel->setArg(index, mm_double4(c[0], c[1], c[2], 0.0));
+    }
+    else {
+        kernel->setArg(index++, mm_float4((float) a[0], (float) b[1], (float) c[2], 0.0f));
+        kernel->setArg(index++, mm_float4(1.0f/(float) a[0], 1.0f/(float) b[1], 1.0f/(float) c[2], 0.0f));
+        kernel->setArg(index++, mm_float4((float) a[0], (float) a[1], (float) a[2], 0.0f));
+        kernel->setArg(index++, mm_float4((float) b[0], (float) b[1], (float) b[2], 0.0f));
+        kernel->setArg(index, mm_float4((float) c[0], (float) c[1], (float) c[2], 0.0f));
+    }
+}
 
 void CommonIntegrateImageLangevinStepKernel::initialize(const System& system, const ImageLangevinIntegrator& integrator) {
     cc.initializeContexts();
@@ -1141,4 +1159,81 @@ void CommonImageParticleKernel::updateImagePositions(ContextImpl& context, const
     kernelImage->execute(integrator.getImagePairs().size());
 
     //cc.reorderAtoms();
+}
+
+void CommonApplyMCZBarostatKernel::initialize(const System& system, const Force& thermostat, bool rigidMolecules) {
+    this->rigidMolecules = rigidMolecules;
+    ContextSelector selector(cc);
+    savedPositions.initialize(cc, cc.getPaddedNumAtoms(), cc.getUseDoublePrecision() ? sizeof(mm_double4) : sizeof(mm_float4), "savedPositions");
+    savedLongForces.initialize<long long>(cc, cc.getPaddedNumAtoms()*3, "savedLongForces");
+    try {
+        cc.getFloatForceBuffer(); // This will throw an exception on the CUDA platform.
+        savedFloatForces.initialize(cc, cc.getPaddedNumAtoms(), cc.getUseDoublePrecision() ? sizeof(mm_double4) : sizeof(mm_float4), "savedForces");
+    }
+    catch (...) {
+        // The CUDA platform doesn't have a floating point force buffer, so we don't need to copy it.
+    }
+    ComputeProgram program = cc.compileProgram(CommonImageKernelSources::mczBarostat);
+    kernel = program->createKernel("scalePositions");
+}
+
+void CommonApplyMCZBarostatKernel::scaleCoordinates(ContextImpl& context, double scaleZ) {
+    ContextSelector selector(cc);
+    if (!hasInitializedKernels) {
+        hasInitializedKernels = true;
+
+        // Create the arrays with the molecule definitions.
+
+        vector<vector<int> > molecules;
+        if (rigidMolecules)
+            molecules = context.getMolecules();
+        else {
+            molecules.resize(cc.getNumAtoms());
+            for (int i = 0; i < molecules.size(); i++)
+                molecules[i].push_back(i);
+        }
+        numMolecules = molecules.size();
+        moleculeAtoms.initialize<int>(cc, cc.getNumAtoms(), "moleculeAtoms");
+        moleculeStartIndex.initialize<int>(cc, numMolecules+1, "moleculeStartIndex");
+        vector<int> atoms(moleculeAtoms.getSize());
+        vector<int> startIndex(moleculeStartIndex.getSize());
+        int index = 0;
+        for (int i = 0; i < numMolecules; i++) {
+            startIndex[i] = index;
+            for (int molecule : molecules[i])
+                atoms[index++] = molecule;
+        }
+        startIndex[numMolecules] = index;
+        moleculeAtoms.upload(atoms);
+        moleculeStartIndex.upload(startIndex);
+
+        // Initialize the kernel arguments.
+
+        kernel->addArg();
+        kernel->addArg(numMolecules);
+        for (int i = 0; i < 5; i++)
+            kernel->addArg();
+        kernel->addArg(cc.getPosq());
+        kernel->addArg(cc.getVelm());
+        kernel->addArg(moleculeAtoms);
+        kernel->addArg(moleculeStartIndex);
+    }
+    cc.getPosq().copyTo(savedPositions);
+    cc.getLongForceBuffer().copyTo(savedLongForces);
+    if (savedFloatForces.isInitialized())
+        cc.getFloatForceBuffer().copyTo(savedFloatForces);
+    kernel->setArg(0, (float) scaleZ);
+    setPeriodicBoxArgs(cc, kernel, 2);
+    kernel->execute(cc.getNumAtoms());
+    for (auto& offset : cc.getPosCellOffsets())
+        offset = mm_int4(0, 0, 0, 0);
+    lastAtomOrder = cc.getAtomIndex();
+}
+
+void CommonApplyMCZBarostatKernel::restoreCoordinates(ContextImpl& context) {
+    ContextSelector selector(cc);
+    savedPositions.copyTo(cc.getPosq());
+    savedLongForces.copyTo(cc.getLongForceBuffer());
+    if (savedFloatForces.isInitialized())
+        savedFloatForces.copyTo(cc.getFloatForceBuffer());
 }

@@ -11,7 +11,8 @@ steps:
 
 1. Create a directory in which to build the plugin.
 
-2. Set environmental variables such as CXXFLAGS='-std=c++11', CC=gcc, CXX=g++, OPENMM_CUDA_COMPILER=$(which nvcc).
+2. Set environmental variables such as CXXFLAGS='-std=c++11', CC=gcc, CXX=g++, 
+OPENMM_CUDA_COMPILER=$(which nvcc).
 
 3. Run the CMake GUI or ccmake, specifying your new directory as the build directory and the top
 level directory of this project as the source directory. (This CMakeLists.txt only supports building 
@@ -34,8 +35,7 @@ and that IMAGE_BUILD_CUDA_LIB is selected.
 
 10. Use the build system you selected to build and install the plugin. 
 Performing three sets of commands 'make / make install / make PythonInstall' will install the plugin
-as 'imageplugin' package in your python. The version of swig should be higher than 3.0 and lower than 
-4.2.
+as 'imageplugin' package in your python. The swig version should be higher than 3.0 and lower than 4.2.
 
 Note: If you want to use the ImageCustomIntegrator in OpenMM 8.0, you need to 
 copy the folder asmjit of OpenMM to the library folder in the plugin for substitution. 
@@ -49,9 +49,9 @@ Usage
 The image charge method is an effienct method to deal with the surface polarization. Here we reconstructed 
 the image charge method in OpenMM 7.7.0 or higher versions with Langevin and Custom Integrators. Note that 
 the plugin can only used in the system with two parallel conductor planes. Refer to 
-[this article](https://doi.org/10.1073/pnas.2020615118), 
-[this article](https://doi.org/10.1063/5.0040172), 
-[this article](https://pubs.acs.org/doi/10.1021/acs.jpcc.9b06635) for more details of this method.
+[this articles](https://doi.org/10.1073/pnas.2020615118), 
+[this articles](https://doi.org/10.1063/5.0040172), 
+[this articles](https://pubs.acs.org/doi/10.1021/acs.jpcc.9b06635) for more details of this method.
 
 ### ImageLangevinIntegrator
 ```python
@@ -103,23 +103,13 @@ for i in range(nRealAtoms):
 ### Monte Carlo Barostat in Z-Direction
 
 The barastae allows for controlled pressure only in the z-direction for a system with two 
-parallel plates. Refer to 
+parallel plates. Only one of plates is moved proportionally with the box.
+Refer to 
 [this article](https://pubs.acs.org/doi/10.1021/acs.jpcc.0c00299) for more details.
 ```python
-from pytools/mcbarostate import *
+from imageplugin import MCZBarostat
 
-barostat = Barostat(simulation, pressure, temperature, barostatInterval)
-barostat.step_poly(equilibrationSteps)
-```
-
-### The scirpt for converting the Tinker prm file to OpenMM xml file.
-
-The tinker2openmm.py is modified based on one scirpt file of [the repo](https://github.com/Inniag/openmm-scripts-amoeba). 
-Here the modified script supports the Z-Bisector local axis type and some other
-parameters, and adds some options which can be seen in detail with "--help".
-Typically, use the script as follow.
-```
-python3 tinker2openmm.py -resname chcl3 -input_xyz=chloroform -input_prm=chcl3 -xml_bond=number
+system.addForce(MCZBarostat(pressure, temperature, barostatInterval))
 ```
 
 For more detailed usage, please refer to the scripts.
@@ -145,7 +135,7 @@ Portions copyright (c) 2023 the Authors.
 Authors: Ruochao Wang
 
 Contributors: 
-Part of the plugin code comes from [scychon's openmm_constV](https://github.com/scychon/openmm_constV).
+Part of the code comes from [scychon's openmm_constV](https://github.com/scychon/openmm_constV).
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
