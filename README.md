@@ -35,7 +35,7 @@ and that IMAGE_BUILD_CUDA_LIB is selected.
 
 10. Use the build system you selected to build and install the plugin. 
 Performing three sets of commands 'make / make install / make PythonInstall' will install the plugin
-as 'imageplugin' package in your python. The swig version should be higher than 3.0 and lower than 4.2.
+as 'imageplugin' package in your python. The swig version should be higher than 3.0.
 
 Note: If you want to use the ImageCustomIntegrator in OpenMM 8.0, you need to 
 copy the folder asmjit of OpenMM to the library folder in the plugin for substitution. 
