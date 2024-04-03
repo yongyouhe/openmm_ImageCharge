@@ -39,6 +39,7 @@
 #include "lepton/ExpressionProgram.h"
 #include "openmm/internal/ImageCustomIntegratorUtilities.h"
 #include "openmm/internal/CompiledExpressionSet.h"
+#include "openmm/AmoebaMultipoleForce.h"
 
 namespace OpenMM {
 
@@ -267,6 +268,51 @@ private:
     ComputeArray moleculeStartIndex;
     ComputeKernel kernel;
     std::vector<int> lastAtomOrder;
+};
+
+
+/**
+ * This kernel is invoked by SlabCorrection to apply the slab correction to the system.
+ */
+class CommonCalcSlabCorrectionKernel : public CalcSlabCorrectionKernel {
+public:
+    CommonCalcSlabCorrectionKernel(std::string name, const Platform& platform, ComputeContext& cc, const System& system) :
+            CalcSlabCorrectionKernel(name, platform), hasInitializedKernel(false), cc(cc), system(system), useAmoebaDip(true), applytoAll(true) {
+    }
+    /**
+     * Initialize the kernel.
+     * 
+     * @param system     the System this kernel will be applied to
+     * @param force      the SlabCorrection this kernel will be used for
+     */
+    void initialize(const System& system, const SlabCorrection& force);
+    /**
+     * Execute the kernel to calculate the forces and/or energy.
+     *
+     * @param context        the context in which to execute this kernel
+     * @param includeForces  true if forces should be calculated
+     * @param includeEnergy  true if the energy should be calculated
+     * @return the potential energy due to the force
+     */
+    double execute(ContextImpl& context, bool includeForces, bool includeEnergy, double muz);
+    /**
+     * Copy changed parameters over to a context.
+     *
+     * @param context    the context to copy parameters to
+     * @param force      the SlabCorrection to copy the parameters from
+     */
+    void copyParametersToContext(ContextImpl& context, const SlabCorrection& force);
+private:
+    class ForceInfo;
+    int numParticlesCorr;
+    double volume;
+    bool useAmoebaDip;
+    bool hasInitializedKernel, applytoAll;
+    ComputeContext& cc;
+    const System& system;
+    ComputeArray sumQZ;
+    ComputeArray invAtomOrder, particlesCorr;
+    ComputeKernel recordKernel, addForcesKernel, calcqzKernel;
 };
 
 } // namespace ImagePlugin

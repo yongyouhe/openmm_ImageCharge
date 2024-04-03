@@ -7,7 +7,7 @@ enum {VelScale, ForceScale, NoiseScale, MaxParams};
 KERNEL void integrateLangevinPart1(int numAtoms, int paddedNumAtoms, GLOBAL mixed4* RESTRICT velm, GLOBAL const mm_long* RESTRICT force, GLOBAL mixed4* RESTRICT posDelta,
         GLOBAL const mixed* RESTRICT paramBuffer, GLOBAL const mixed2* RESTRICT dt, GLOBAL const float4* RESTRICT random, unsigned int randomIndex) {
     mixed vscale = paramBuffer[VelScale];
-    mixed fscale = paramBuffer[ForceScale]/(mixed) 0x100000000;
+    mixed fscale = paramBuffer[ForceScale]/(mixed) 0x100000000; //In order to storing accurately the value of forces
     mixed noisescale = paramBuffer[NoiseScale];
     mixed stepSize = dt[0].y;
     int index = GLOBAL_ID;
@@ -74,6 +74,12 @@ KERNEL void integrateLangevinPart2(int numAtoms, GLOBAL real4* RESTRICT posq, GL
 #endif
             velm[index] = vel;
         }
+
+        // if(posq[index].z > 8.4162){
+        //     printf("langevin index = %d, posq[index] = %f %f %f %f\n", 
+        //             index, posq[index].x, posq[index].y, posq[index].z, posq[index].w);
+        // }
+
         index += GLOBAL_SIZE;
     }
 }

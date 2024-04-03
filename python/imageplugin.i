@@ -145,16 +145,21 @@ int isNumpyAvailable() {
 namespace OpenMM {
 
 %factory(OpenMM::Force& OpenMM::System::getForce,
-         OpenMM::MCZBarostat);
+         OpenMM::MCZBarostat,
+         OpenMM::SlabCorrection);
 
 %factory(OpenMM::Force* OpenMM_XmlSerializer__cloneForce,
-         OpenMM::MCZBarostat);
+         OpenMM::MCZBarostat,
+         OpenMM::SlabCorrection);
 
 %factory(OpenMM::Force* OpenMM_XmlSerializer__deserializeForce,
-         OpenMM::MCZBarostat);
+         OpenMM::MCZBarostat,
+         OpenMM::SlabCorrection);
 
 %copyctor MCZBarostat ;
 class MCZBarostat ;
+%copyctor SlabCorrection ;
+class SlabCorrection ;
 
 
 class ImageIntegrator {
@@ -266,5 +271,21 @@ public:
    virtual bool usesPeriodicBoundaryConditions() const;
 };
 
+class SlabCorrection : public Force {
+public:
+    SlabCorrection(bool applytoAll=true, bool useAmoebaDip=true);
+
+    bool getApplytoAll() const;
+    void setApplytoAll(bool apply);
+    int addParticles(int index);
+    const std::vector<int>& getParticlesCorr() const;
+    int getNumParticlesCorr() const;
+    bool useAmoebaDipole() const;
+    void setUseAmoebaDipole(bool use);
+    %apply Context & OUTPUT { Context & context };
+    void updateParametersInContext(Context& context);
+    %clear Context & context;
+    virtual bool usesPeriodicBoundaryConditions() const ;
+};
 
 }

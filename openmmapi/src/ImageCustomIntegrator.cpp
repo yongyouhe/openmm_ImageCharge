@@ -106,9 +106,11 @@ void ImageCustomIntegrator::initialize(ContextImpl& contextRef) {
         kernel.getAs<IntegrateImageCustomStepKernel>().setPerDofVariable(contextRef, i, perDofValues[i]);
     }
     if(getUseImageParticle()){
+        //cout<<"Use image particles."<<endl;
         imgkernel = context->getPlatform().createKernel(ImageParticleKernel::Name(), contextRef);
         imgkernel.getAs<ImageParticleKernel>().initialize(contextRef.getSystem(), *this);
     }
+    //cout<<"kernels init done!"<<endl;
 }
 
 void ImageCustomIntegrator::cleanup() {
@@ -171,6 +173,7 @@ void ImageCustomIntegrator::step(int steps) {
     for (int i = 0; i < steps; ++i) {
         kernel.getAs<IntegrateImageCustomStepKernel>().execute(*context, *this, forcesAreValid);
         if(getUseImageParticle()){
+            //cout<<"step kernel use image particles."<<endl;
             imgkernel.getAs<ImageParticleKernel>().updateImagePositions(*context, *this);
             //cout<<"ImageParticleKernel excution done!"<<endl;
         }

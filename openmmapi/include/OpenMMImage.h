@@ -37,5 +37,6 @@
 #include "openmm/ImageCustomIntegrator.h"
 #include "openmm/ImageIntegrator.h"
 #include "openmm/MCZBarostat.h"
+#include "openmm/SlabCorrection.h"
 
 #endif /*OPENMM_IMAGE_H_*/

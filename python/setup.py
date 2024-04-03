@@ -30,7 +30,7 @@ extension = Extension(name='_imageplugin',
                      )
 
 setup(name='imageplugin',
-      version='1.1',
+      version='1.4',
       py_modules=['imageplugin'],
       ext_modules=[extension],
      )

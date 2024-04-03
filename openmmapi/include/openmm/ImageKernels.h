@@ -37,6 +37,7 @@
 #include "openmm/ImageLangevinIntegrator.h"
 #include "openmm/ImageCustomIntegrator.h"
 #include "openmm/MCZBarostat.h"
+#include "openmm/SlabCorrection.h"
 #include "openmm/Platform.h"
 #include "openmm/System.h"
 #include "openmm/Vec3.h"
@@ -199,6 +200,38 @@ namespace OpenMM
          * @param integrator    the ImageLangevinIntegrator this kernel is being used for.
         */
         virtual void updateImagePositions(ContextImpl& context, const ImageIntegrator& integrator) = 0;
+    };
+
+    class CalcSlabCorrectionKernel : public KernelImpl {
+    public:
+        static std::string Name() {
+            return "CalcSlabCorrection";
+        }
+        CalcSlabCorrectionKernel(std::string name, const Platform& platform) : KernelImpl(name, platform) {
+        }
+        /**
+         * Initialize the kernel.
+         * 
+         * @param system     the System this kernel will be applied to
+         * @param force      the SlabCorrection this kernel will be used for
+         */
+        virtual void initialize(const System& system, const SlabCorrection& force) = 0;
+        /**
+         * Execute the kernel to calculate the forces and/or energy.
+         *
+         * @param context        the context in which to execute this kernel
+         * @param includeForces  true if forces should be calculated
+         * @param includeEnergy  true if the energy should be calculated
+         * @return the potential energy due to the force
+         */
+        virtual double execute(ContextImpl& context, bool includeForces, bool includeEnergy, double muz) = 0;
+        /**
+         * Copy changed parameters over to a context.
+         *
+         * @param context    the context to copy parameters to
+         * @param force      the SlabCorrection to copy the parameters from
+         */
+        virtual void copyParametersToContext(ContextImpl& context, const SlabCorrection& force) = 0;
     };
 
 }// namespace OpenMM

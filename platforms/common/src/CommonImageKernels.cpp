@@ -1237,3 +1237,142 @@ void CommonApplyMCZBarostatKernel::restoreCoordinates(ContextImpl& context) {
     if (savedFloatForces.isInitialized())
         savedFloatForces.copyTo(cc.getFloatForceBuffer());
 }
+
+
+class CommonCalcSlabCorrectionKernel::ForceInfo : public ComputeForceInfo {
+public:
+    ForceInfo(const SlabCorrection& force, int numParticles) : force(force), numParticles(numParticles){
+    }
+    // int getNumParticleGroups() {
+    //     if(force.getApplytoAll())
+    //         return numParticles;
+    //     else
+    //         return force.getNumParticlesCorr();
+    // }
+
+private:
+    const SlabCorrection& force;
+    int numParticles;
+};
+
+void CommonCalcSlabCorrectionKernel::initialize(const System& system, const SlabCorrection& force) {
+    ContextSelector selector(cc);
+
+    if(force.getApplytoAll()){
+        numParticlesCorr = system.getNumParticles();
+        //applytoAll = true;
+    }
+    else{
+        numParticlesCorr = force.getNumParticlesCorr();
+        applytoAll = false;
+    }
+    
+    invAtomOrder.initialize<int>(cc, numParticlesCorr, "invAtomOrder");
+    particlesCorr.initialize<int>(cc, numParticlesCorr, "particlesCorr");
+    if(!force.getApplytoAll())
+        particlesCorr.upload(force.getParticlesCorr());
+        
+    map<string, string> defines;
+    defines["NUM_PARTICLECORR"] = cc.intToString(numParticlesCorr);
+    defines["PADDED_NUM_ATOMS"] = cc.intToString(cc.getPaddedNumAtoms());
+    ComputeProgram program = cc.compileProgram(CommonImageKernelSources::slabcorrect, defines);
+    // the kernel of recording atom index
+    recordKernel = program->createKernel("recordAtomIndexes");
+    recordKernel->addArg(numParticlesCorr);
+    if(applytoAll)
+        recordKernel->addArg(cc.getAtomIndexArray());
+    else
+        recordKernel->addArg(particlesCorr);
+    recordKernel->addArg(invAtomOrder);
+
+    // initialize the parameters.
+    int mtpIndex;
+    const AmoebaMultipoleForce* mtpForce = NULL;
+    for(int i=0; i<system.getNumForces(); i++){
+        if(dynamic_cast<const AmoebaMultipoleForce*>(&system.getForce(i))!=NULL){
+            mtpIndex = i;
+            if(mtpForce == NULL)
+                mtpForce = dynamic_cast<const AmoebaMultipoleForce*>(&system.getForce(i));
+            else
+                throw OpenMMException("The System contains multiple AmoebaMultipoleForce");
+        }
+    }
+    if(mtpForce == NULL)
+        throw OpenMMException("The System does not contain a AmoebaMultipoleForce");
+    Vec3 a, b, c;
+    cc.getPeriodicBoxVectors(a, b, c);
+    volume = a[0]*b[1]*c[2];
+    double fscale = -1/(EPSILON0*volume);
+
+    // the kernel of computing muz = q*z;
+    sumQZ.initialize<long long>(cc, 1, "sumQZ");
+    if(!force.useAmoebaDipole()){
+        useAmoebaDip = false;
+        calcqzKernel = program->createKernel("computeQZ");
+        calcqzKernel->addArg(invAtomOrder);
+        calcqzKernel->addArg(applytoAll);
+        if(applytoAll)
+            calcqzKernel->addArg(nullptr);
+        else
+            calcqzKernel->addArg(particlesCorr);
+        calcqzKernel->addArg(sumQZ);
+        calcqzKernel->addArg(cc.getPosq());
+    }
+
+    // the kernel of add slab correction forces
+    addForcesKernel = program->createKernel("addSlabCorrection");
+    addForcesKernel->addArg(cc.getLongForceBuffer());
+    addForcesKernel->addArg(cc.getLongForceBuffer().getSize());
+    addForcesKernel->addArg(applytoAll);
+    addForcesKernel->addArg(cc.getPosq());
+    addForcesKernel->addArg(invAtomOrder);
+    if(applytoAll)
+        addForcesKernel->addArg(nullptr);
+    else
+        addForcesKernel->addArg(particlesCorr);
+    addForcesKernel->addArg(useAmoebaDip);
+    addForcesKernel->addArg();
+    if(cc.getUseDoublePrecision())
+        addForcesKernel->addArg(fscale);
+    else
+        addForcesKernel->addArg((float) fscale);
+    addForcesKernel->addArg(sumQZ);
+
+    cout<<"SlabCorrectionKernel module is created.\n"
+        <<"    Number of particles which are applied to slab correction: "<<numParticlesCorr<<"\n"
+        <<"    Whether to use Amoeba dipoles to caculate the correction: "<<useAmoebaDip<<"\n"
+        <<"    The index of AmoebaMultipoleForce is:                     "<<mtpIndex<<endl;
+}
+
+double CommonCalcSlabCorrectionKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy, double muz) {
+    ContextSelector selector(cc);
+
+    if(!applytoAll && (cc.getStepCount()<=1 || cc.getAtomsWereReordered()))
+        recordKernel->execute(cc.getNumAtoms());
+    
+    if(!useAmoebaDip)
+        calcqzKernel->execute(cc.getNumAtoms()); 
+
+    //double muz = mtpForce->getSystemMultipoleMoments(context.getOwner())[3];
+    if(cc.getUseDoublePrecision())
+        addForcesKernel->setArg(7, muz);
+    else
+        addForcesKernel->setArg(7, (float) muz);
+
+    addForcesKernel->execute(cc.getNumAtoms());
+
+    double energy = 0.0;
+    if(useAmoebaDip)
+        energy = 1/(2*EPSILON0*volume)*muz*muz;
+    else{
+        long long muzQZlong;
+        sumQZ.download(&muzQZlong, false);
+        double muzQZ = (double) (muzQZlong / 0x100000000);
+        energy = 1/(2*EPSILON0*volume)*muzQZ*muzQZ;
+    }
+    return energy;
+}
+
+void CommonCalcSlabCorrectionKernel::copyParametersToContext(ContextImpl& context, const SlabCorrection& force) {
+    return;
+}

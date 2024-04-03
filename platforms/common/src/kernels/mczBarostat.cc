@@ -1,5 +1,5 @@
 /**
- * Scale the particle positions with each axis independent.
+ * Scale the particle positions with z axis.
  */
 
 KERNEL void scalePositions(float scaleZ, int numMolecules, real4 periodicBoxSize,

@@ -1,5 +1,8 @@
+#ifndef OPENMM_SLABCORRECTIONIMPL_H_
+#define OPENMM_SLABCORRECTIONIMPL_H_
+
 /* -------------------------------------------------------------------------- *
- *                                OpenMMExample                                 *
+ *                                   OpenMM                                   *
  * -------------------------------------------------------------------------- *
  * This is part of the OpenMM molecular simulation toolkit originating from   *
  * Simbios, the NIH National Center for Physics-Based Simulation of           *
@@ -29,42 +32,46 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.                                     *
  * -------------------------------------------------------------------------- */
 
-#ifdef WIN32
-#include <windows.h>
-#include <sstream>
-#else
-#include <dlfcn.h>
-#include <dirent.h>
-#include <cstdlib>
-#endif
-
-#include "openmm/OpenMMException.h"
-
-#include "openmm/ImageLangevinIntegrator.h"
-#include "openmm/MCZBarostat.h"
 #include "openmm/SlabCorrection.h"
+#include "openmm/internal/ForceImpl.h"
+#include "openmm/Kernel.h"
+#include "openmm/internal/AmoebaMultipoleForceImpl.h"
+#include <utility>
+#include <set>
+#include <string>
 
-#include "openmm/serialization/ImageLangevinIntegratorProxy.h"
-#include "openmm/serialization/SerializationProxy.h"
-#include "openmm/serialization/MCZBarostatProxy.h"
-#include "openmm/serialization/SlabCorrectionProxy.h"
+namespace OpenMM {
 
-#if defined(WIN32)
-    #include <windows.h>
-    extern "C" void registerImageSerializationProxies();
-    BOOL WINAPI DllMain(HANDLE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved) {
-        if (ul_reason_for_call == DLL_PROCESS_ATTACH)
-            registerImageSerializationProxies();
-        return TRUE;
+class System;
+
+/**
+ * This is the internal implementation of ExampleForce.
+ */
+
+class OPENMM_EXPORT SlabCorrectionImpl : public ForceImpl {
+public:
+    SlabCorrectionImpl(const SlabCorrection& owner);
+    ~SlabCorrectionImpl();
+    void initialize(ContextImpl& context);
+    const SlabCorrection& getOwner() const {
+        return owner;
     }
-#else
-    extern "C" void __attribute__((constructor)) registerImageSerializationProxies();
-#endif
+    void updateContextState(ContextImpl& context, bool& forcesInvalid) {
+        // This force field doesn't update the state directly.
+    }
+    double calcForcesAndEnergy(ContextImpl& context, bool includeForces, bool includeEnergy, int groups);
+    std::map<std::string, double> getDefaultParameters() {
+        return std::map<std::string, double>(); // This force field doesn't define any parameters.
+    }
+    std::vector<std::string> getKernelNames();
+    void updateParametersInContext(ContextImpl& context);
+private:
+    const SlabCorrection& owner;
+    Kernel kernel;
+    AmoebaMultipoleForceImpl* mtpImpl;
+    std::vector<double> multipoleMoments;
+};
 
-using namespace OpenMM;
+} // namespace ExamplePlugin
 
-extern "C" void registerImageSerializationProxies() {
-    SerializationProxy::registerProxy(typeid(ImageLangevinIntegrator), new ImageLangevinIntegratorProxy());
-    SerializationProxy::registerProxy(typeid(MCZBarostat), new MCZBarostatProxy());
-    SerializationProxy::registerProxy(typeid(SlabCorrection), new SlabCorrectionProxy());
-}
+#endif 
