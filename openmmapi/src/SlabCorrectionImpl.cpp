@@ -84,8 +84,9 @@ double SlabCorrectionImpl::calcForcesAndEnergy(ContextImpl& context, bool includ
         if(mtpImpl == NULL)
             throw OpenMMException("The Context does not contain a AmoebaMultipoleForceImpl");
         else if(owner.useAmoebaDipole()){
-            mtpImpl->getSystemMultipoleMoments(context, multipoleMoments);
-            return kernel.getAs<CalcSlabCorrectionKernel>().execute(context, includeForces, includeEnergy, multipoleMoments[3]);
+            mtpImpl->getSystemMultipoleMoments(context, multipoleMoments); # unit is Debye
+            double debye = 48.0321;
+            return kernel.getAs<CalcSlabCorrectionKernel>().execute(context, includeForces, includeEnergy, multipoleMoments[3]/debye);
         }
         else
             return kernel.getAs<CalcSlabCorrectionKernel>().execute(context, includeForces, includeEnergy, 0.0);
