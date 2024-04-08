@@ -9,24 +9,24 @@ KERNEL void addSlabCorrection(GLOBAL mm_long* forces, int bufferSize, bool apply
         if(useAmoebaDip == true) {
             if(applytoAll == true) {
                 //forces[index] += mm_long (posq.w*muz*fscale*0x100000000);
-                forces[index+PADDED_NUM_ATOMS*2] += (mm_long) (posq[index+PADDED_NUM_ATOMS*2].w*muz*fscale*0x100000000);
-                //ATOMIC_ADD(&forces[index+PADDED_NUM_ATOMS*2], (mm_ulong) ((mm_long) (posq[index+PADDED_NUM_ATOMS*2].w*muz*fscale*0x100000000)));
+                forces[index+PADDED_NUM_ATOMS*2] += (mm_long) (posq[index].w*muz*fscale*0x100000000);
+                //ATOMIC_ADD(&forces[index+PADDED_NUM_ATOMS*2], (mm_ulong) ((mm_long) (posq[index].w*muz*fscale*0x100000000)));
             }
             else {
                 int particle = particlesCorr[index];
                 int iparticle = invAtomOrder[particle]+PADDED_NUM_ATOMS*2;
-                forces[iparticle] += (mm_long) (posq[iparticle].w*muz*fscale*0x100000000);
+                forces[iparticle] += (mm_long) (posq[invAtomOrder[particle]].w*muz*fscale*0x100000000);
             }
         }
         else {
             if(applytoAll == true) {
                 int iparticle = index+PADDED_NUM_ATOMS*2;
-                forces[iparticle] += (mm_long) ((*sumQZ)*posq[iparticle].w*fscale);
+                forces[iparticle] += (mm_long) ((*sumQZ)*posq[index].w*fscale);
             }
             else {
                 int particle = particlesCorr[index];
                 int iparticle = invAtomOrder[particle]+PADDED_NUM_ATOMS*2;
-                forces[iparticle] += (mm_long) ((*sumQZ)*posq[iparticle].w*fscale);
+                forces[iparticle] += (mm_long) ((*sumQZ)*posq[invAtomOrder[particle]].w*fscale);
             }
         }
     }
