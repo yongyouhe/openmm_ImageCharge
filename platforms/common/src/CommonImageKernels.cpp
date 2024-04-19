@@ -1359,16 +1359,19 @@ double CommonCalcSlabCorrectionKernel::execute(ContextImpl& context, bool includ
     else
         addForcesKernel->setArg(7, (float) muz);
 
-    addForcesKernel->execute(cc.getNumAtoms());
+    if(includeForces)
+        addForcesKernel->execute(cc.getNumAtoms());
 
     double energy = 0.0;
-    if(useAmoebaDip)
-        energy = 1/(2*EPSILON0*volume)*muz*muz;
-    else{
-        long long muzQZlong;
-        sumQZ.download(&muzQZlong, false);
-        double muzQZ = (double) (muzQZlong / 0x100000000);
-        energy = 1/(2*EPSILON0*volume)*muzQZ*muzQZ;
+    if(includeEnergy){
+        if(useAmoebaDip)
+            energy = 1/(2*EPSILON0*volume)*muz*muz;
+        else{
+            long long* muzQZlong = (long long*) cc.getPinnedBuffer();
+            sumQZ.download(&muzQZlong);
+            double muzQZ = (double) (*muzQZlong / (double) 0x100000000);
+            energy = 1/(2*EPSILON0*volume)*muzQZ*muzQZ;
+        }
     }
     return energy;
 }

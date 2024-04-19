@@ -81,8 +81,10 @@ double SlabCorrectionImpl::calcForcesAndEnergy(ContextImpl& context, bool includ
         //         break;
         //     }
         // }
-        if(mtpImpl == NULL)
-            throw OpenMMException("The Context does not contain a AmoebaMultipoleForceImpl");
+        if(mtpImpl == NULL){
+            cout<<"The Context does not contain a AmoebaMultipoleForceImpl!"<<endl;
+            return kernel.getAs<CalcSlabCorrectionKernel>().execute(context, includeForces, includeEnergy, 0.0);
+        }
         else if(owner.useAmoebaDipole()){
             mtpImpl->getSystemMultipoleMoments(context, multipoleMoments); // unit is Debye
             double debye = 48.0321;
