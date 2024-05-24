@@ -1278,11 +1278,8 @@ void CommonCalcSlabCorrectionKernel::initialize(const System& system, const Slab
     ComputeProgram program = cc.compileProgram(CommonImageKernelSources::slabcorrect, defines);
     // the kernel of recording atom index
     recordKernel = program->createKernel("recordAtomIndexes");
-    recordKernel->addArg(numParticlesCorr);
-    if(applytoAll)
-        recordKernel->addArg(cc.getAtomIndexArray());
-    else
-        recordKernel->addArg(particlesCorr);
+    recordKernel->addArg(cc.getNumAtoms());
+    recordKernel->addArg(cc.getAtomIndexArray());
     recordKernel->addArg(invAtomOrder);
 
     // initialize the parameters.
@@ -1298,7 +1295,7 @@ void CommonCalcSlabCorrectionKernel::initialize(const System& system, const Slab
         }
     }
     if(mtpForce == NULL)
-        throw OpenMMException("The System does not contain a AmoebaMultipoleForce");
+        cout<<"The System does not contain a AmoebaMultipoleForce"<<endl;
     Vec3 a, b, c;
     cc.getPeriodicBoxVectors(a, b, c);
     volume = a[0]*b[1]*c[2];
